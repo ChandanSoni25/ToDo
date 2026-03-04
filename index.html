@@ -1,166 +1,425 @@
-<!DOCTYPE html>
+Here is the fully updated code incorporating all your requested features:
+
+1. **Show Password Option**: Added an eye icon in the password field to toggle visibility.
+2. **Undo Priority Selection**: After adding a task, the category selection is cleared. You are required to click a priority category before adding the next task.
+3. **Dashboard Checkboxes**: Tasks inside the Dashboard's Eisenhower Matrix now have checkboxes.
+4. **Remove Checked Items**: Once checked, tasks disappear from the active task list and the matrix.
+5. **Completed Tasks List**: Added a new scrollable section at the bottom of the Dashboard to display all completed tasks (with the ability to uncheck them).
+
+Replace your `index.html` with this final version:
+
+```html
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Matrix To-Do</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    <style>
-        body { font-family: sans-serif; background: #f4f7f6; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 90%; max-width: 800px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: #ddd; border-radius: 5px; }
-        .tab-btn.active { background: #007bff; color: white; }
-        .content { display: none; }
-        .content.active { display: block; }
-        #drop-zone { border: 2px dashed #007bff; padding: 20px; text-align: center; color: #555; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        select { padding: 5px; border-radius: 4px; }
-        .chart-container { width: 100%; height: 400px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart To-do</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body { font-family: 'Inter', sans-serif; background-color: #0b1121; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0b1121; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .paste-zone.drag { background: rgba(99, 102, 241, 0.1); border-color: #6366f1; }
+    .btn-active { box-shadow: 0 0 0 2px #6366f1 inset; background-color: rgba(99, 102, 241, 0.1) !important; }
+    .flash { animation: flash 0.3s; }
+    @keyframes flash { from {opacity: 0.6} to {opacity: 1} }
+    .task.UI { border-left: 3px solid #ef4444; }
+    .task.NI { border-left: 3px solid #f59e0b; }
+    .task.UN { border-left: 3px solid #3b82f6; }
+    .task.NN { border-left: 3px solid #64748b; }
+</style>
 </head>
-<body>
 
-<div class="container">
-    <h2>Matrix Task Manager</h2>
-    <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('list-tab')">Task List</button>
-        <button class="tab-btn" onclick="showTab('chart-tab')">Analytics Chart</button>
-    </div>
+<body class="text-slate-200 min-h-screen flex flex-col relative">
 
-    <div id="list-tab" class="content active">
-        <div id="drop-zone">Click here and <strong>Paste (Ctrl+V)</strong> your Excel column or Image</div>
-        <table id="task-table">
-            <thead>
-                <tr>
-                    <th>Task</th>
-                    <th>Priority Category</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="task-body"></tbody>
-        </table>
-    </div>
+<div id="authScreen" class="fixed inset-0 z-50 bg-[#0b1121] flex flex-col items-center justify-center p-6">
+    <div class="absolute top-6 right-8 text-sm text-slate-500 italic font-medium">Designed by Chandan</div>
 
-    <div id="chart-tab" class="content">
-        <div class="chart-container">
-            <canvas id="priorityChart"></canvas>
+    <div class="bg-[#131b2b] border border-slate-800 p-8 rounded-2xl w-full max-w-md shadow-2xl">
+        <h2 class="text-2xl font-bold text-center text-indigo-400 mb-6" id="authTitle">Smart To-do</h2>
+        
+        <input type="email" id="emailInput" placeholder="Email address" class="w-full bg-[#182132] border border-slate-700 rounded-lg p-3 text-sm text-slate-200 mb-4 outline-none focus:border-indigo-500">
+        
+        <div id="pwdContainer" class="relative mb-2">
+            <input type="password" id="passwordInput" placeholder="Password" class="w-full bg-[#182132] border border-slate-700 rounded-lg p-3 pr-10 text-sm text-slate-200 outline-none focus:border-indigo-500">
+            <button onclick="togglePassword()" class="absolute right-3 top-3 text-slate-400 hover:text-indigo-400 outline-none transition-colors" title="Toggle Password Visibility">
+                <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+            </button>
         </div>
+        
+        <div id="forgotPwdContainer" class="text-right mb-6">
+            <button onclick="resetPassword()" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors outline-none">Forgot Password?</button>
+        </div>
+        
+        <button id="authBtn" onclick="handleAuth()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition-colors mb-4">Login</button>
+        
+        <p class="text-center text-sm text-slate-400">
+            <span id="authToggleText">Don't have an account?</span> 
+            <button onclick="toggleAuthMode()" class="text-indigo-400 hover:text-indigo-300 font-medium ml-1">Sign up</button>
+        </p>
+        <p id="authError" class="text-xs text-center mt-4 hidden"></p>
     </div>
 </div>
 
-<script>
-    let tasks = [];
-    let myChart = null;
-
-    // Handle Pasting
-    document.addEventListener('paste', async (e) => {
-        const items = e.clipboardData.items;
+<div id="mainApp" class="hidden flex-1 flex flex-col">
+    <div class="px-6 pt-4 border-b border-slate-800/80 flex justify-between items-center">
+        <div class="flex gap-6">
+            <button id="tabTasks" class="pb-3 text-indigo-400 border-b-2 border-indigo-500 font-medium flex items-center gap-2 text-sm transition-colors" onclick="switchTab('tasks')">📄 Tasks</button>
+            <button id="tabDash" class="pb-3 text-slate-400 border-b-2 border-transparent hover:text-slate-300 font-medium flex items-center gap-2 text-sm transition-colors" onclick="switchTab('dashboard')">📊 Dashboard</button>
+        </div>
         
-        for (let item of items) {
-            // Handle Images
-            if (item.type.indexOf("image") !== -1) {
-                const blob = item.getAsFile();
-                document.getElementById('drop-zone').innerText = "Processing image...";
-                const result = await Tesseract.recognize(blob, 'eng');
-                processText(result.data.text);
-            } 
-            // Handle Text/Excel
-            else if (item.type === "text/plain") {
-                item.getAsString((text) => processText(text));
+        <div class="flex items-center gap-6">
+            <span class="text-sm text-slate-500 italic pb-3">Designed by Chandan</span>
+            <button onclick="logout()" class="pb-3 text-sm text-slate-400 hover:text-red-400 transition-colors font-medium">Logout</button>
+        </div>
+    </div>
+
+    <main class="max-w-5xl mx-auto w-full p-6 flex-1">
+
+        <section id="tasksSection" class="space-y-6">
+            <div id="pasteZone" class="border border-dashed border-indigo-500/40 rounded-xl p-6 transition-colors">
+                <p class="text-center text-slate-300 text-sm mb-4">Ctrl+V to paste • Each line becomes a task</p>
+                <textarea id="taskInput" class="w-full bg-[#182132] border border-slate-700/50 rounded-lg p-4 text-sm text-slate-200 resize-none outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all" rows="4"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="setDefault('UI', this)" class="catBtn bg-[#1f161c] border border-red-900/50 rounded-lg py-3 text-sm flex items-center justify-center gap-2 transition-all">🔥 Urgent & Important</button>
+                <button onclick="setDefault('NI', this)" class="catBtn bg-[#221c15] border border-amber-900/50 rounded-lg py-3 text-sm flex items-center justify-center gap-2 transition-all">🎯 Not Urgent Important</button>
+                <button onclick="setDefault('UN', this)" class="catBtn bg-[#131d2e] border border-blue-900/50 rounded-lg py-3 text-sm flex items-center justify-center gap-2 transition-all">⚡ Urgent Not Important</button>
+                <button onclick="setDefault('NN', this)" class="catBtn bg-[#1a202c] border border-slate-700/50 rounded-lg py-3 text-sm flex items-center justify-center gap-2 transition-all">📦 Neither</button>
+            </div>
+
+            <button id="addBtn" onclick="addTasks()" class="w-full bg-[#5a4bfc] hover:bg-[#4f3feb] text-white py-3.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors focus:outline-none">
+                ➕ Add Tasks
+            </button>
+
+            <div id="loadingIndicator" class="text-center text-slate-500 text-sm py-4 hidden">Syncing with Firebase...</div>
+            <div id="taskList" class="space-y-3 pt-4"></div>
+        </section>
+
+        <section id="dashboardSection" class="space-y-6 hidden">
+            <div class="bg-[#131b2b] border border-slate-800 rounded-xl p-6">
+                <h3 class="text-sm font-semibold mb-6 text-slate-100">Task Distribution (Active)</h3>
+                <div class="space-y-5 text-sm">
+                    <div><div class="flex justify-between mb-1.5"><span class="text-slate-300">Urgent Important</span></div><div class="h-1.5 bg-[#1e293b] rounded-full overflow-hidden"><div id="barUI" class="h-full bg-red-500 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between mb-1.5"><span class="text-slate-300">Not Urgent Important</span></div><div class="h-1.5 bg-[#1e293b] rounded-full overflow-hidden"><div id="barNI" class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between mb-1.5"><span class="text-slate-300">Urgent Not Important</span></div><div class="h-1.5 bg-[#1e293b] rounded-full overflow-hidden"><div id="barUN" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between mb-1.5"><span class="text-slate-300">Neither</span></div><div class="h-1.5 bg-[#1e293b] rounded-full overflow-hidden"><div id="barNN" class="h-full bg-slate-500 rounded-full transition-all duration-500" style="width: 0%"></div></div></div>
+                </div>
+            </div>
+
+            <div class="bg-[#131b2b] border border-slate-800 rounded-xl p-6">
+                <h3 class="text-sm font-semibold mb-6 text-slate-100">Eisenhower Matrix</h3>
+                <div class="grid grid-cols-2 gap-8 text-sm">
+                    <div><h4 class="text-red-400 font-bold text-xs mb-3 tracking-wider">DO FIRST</h4><div id="mUI" class="space-y-2"></div></div>
+                    <div><h4 class="text-amber-500 font-bold text-xs mb-3 tracking-wider">SCHEDULE</h4><div id="mNI" class="space-y-2"></div></div>
+                    <div><h4 class="text-blue-400 font-bold text-xs mb-3 tracking-wider">DELEGATE</h4><div id="mUN" class="space-y-2"></div></div>
+                    <div><h4 class="text-slate-400 font-bold text-xs mb-3 tracking-wider">ELIMINATE</h4><div id="mNN" class="space-y-2"></div></div>
+                </div>
+            </div>
+
+            <div class="bg-[#131b2b] border border-slate-800 rounded-xl p-6">
+                <h3 class="text-sm font-semibold mb-4 text-slate-100">Completion Progress</h3>
+                <div class="h-2 bg-[#1e293b] rounded-full overflow-hidden mb-3">
+                    <div id="progressBar" class="h-full bg-[#5a4bfc] rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-slate-400"><span id="doneCount">0</span> completed • <span id="totalCount">0</span> total</p>
+            </div>
+
+            <div class="bg-[#131b2b] border border-slate-800 rounded-xl p-6 mt-6">
+                <h3 class="text-sm font-semibold mb-4 text-slate-100 flex justify-between items-center">
+                    Completed Tasks
+                </h3>
+                <div id="completedList" class="space-y-2 text-sm text-slate-500 max-h-60 overflow-y-auto"></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBb1cRmqk7bRLlEsoXPU-km13iwFzfGiXI",
+      authDomain: "to-do-50c59.firebaseapp.com",
+      projectId: "to-do-50c59",
+      storageBucket: "to-do-50c59.firebasestorage.app",
+      messagingSenderId: "363278531929",
+      appId: "1:363278531929:web:d7b5a5db3c12f8d2c3a048"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const tasksCollection = collection(db, "tasks");
+
+    window.tasksData = [];
+    window.defaultCat = null; // Start with NO category selected
+    let currentUser = null;
+    let unsubscribeSnapshot = null;
+    let isLoginMode = true;
+
+    /* --- AUTHENTICATION LOGIC --- */
+    window.togglePassword = function() {
+        const pwdInput = document.getElementById('passwordInput');
+        if (pwdInput.type === "password") {
+            pwdInput.type = "text";
+        } else {
+            pwdInput.type = "password";
+        }
+    };
+
+    window.toggleAuthMode = function() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('authTitle').innerText = isLoginMode ? "Smart To-do" : "Create Account";
+        document.getElementById('authBtn').innerText = isLoginMode ? "Login" : "Sign Up";
+        document.getElementById('authToggleText').innerText = isLoginMode ? "Don't have an account?" : "Already have an account?";
+        
+        document.getElementById('forgotPwdContainer').style.display = isLoginMode ? 'block' : 'none';
+        document.getElementById('pwdContainer').className = isLoginMode ? "relative mb-2" : "relative mb-6";
+        document.getElementById('authError').classList.add('hidden');
+    };
+
+    window.handleAuth = async function() {
+        const email = document.getElementById('emailInput').value;
+        const password = document.getElementById('passwordInput').value;
+        const errorText = document.getElementById('authError');
+        errorText.classList.add('hidden');
+        errorText.classList.remove('text-green-400');
+        errorText.classList.add('text-red-400');
+
+        try {
+            if (isLoginMode) {
+                await signInWithEmailAndPassword(auth, email, password);
+            } else {
+                await createUserWithEmailAndPassword(auth, email, password);
             }
+        } catch (error) {
+            errorText.innerText = error.message.replace("Firebase: ", "");
+            errorText.classList.remove('hidden');
+        }
+    };
+
+    window.resetPassword = async function() {
+        let email = document.getElementById('emailInput').value;
+        const errorText = document.getElementById('authError');
+        
+        if (!email) {
+            email = prompt("Please enter your email address to receive a password reset link:");
+            if (!email) return; 
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, email);
+            errorText.innerText = "Password reset email sent! Please check your inbox.";
+            errorText.classList.remove('hidden', 'text-red-400');
+            errorText.classList.add('text-green-400');
+        } catch (error) {
+            errorText.innerText = error.message.replace("Firebase: ", "");
+            errorText.classList.remove('hidden', 'text-green-400');
+            errorText.classList.add('text-red-400');
+        }
+    };
+
+    window.logout = function() {
+        signOut(auth);
+    };
+
+    // Monitor Login State
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadUserTasks();
+        } else {
+            currentUser = null;
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('authError').classList.add('hidden');
+            if (unsubscribeSnapshot) unsubscribeSnapshot(); 
+            window.tasksData = [];
+            window.render();
         }
     });
 
-    function processText(text) {
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
-        lines.forEach(line => {
-            addTask(line.trim());
-        });
-        document.getElementById('drop-zone').innerText = "Input Received! Paste more or organize below.";
-    }
-
-    function addTask(taskText) {
-        const task = { id: Date.now() + Math.random(), text: taskText, category: "Not Urgent Not Important" };
-        tasks.push(task);
-        renderTasks();
-        updateChart();
-    }
-
-    function renderTasks() {
-        const tbody = document.getElementById('task-body');
-        tbody.innerHTML = '';
-        tasks.forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${task.text}</td>
-                <td>
-                    <select onchange="updateTaskCategory(${task.id}, this.value)">
-                        <option ${task.category === 'Urgent Important' ? 'selected' : ''}>Urgent Important</option>
-                        <option ${task.category === 'Not Urgent Important' ? 'selected' : ''}>Not Urgent Important</option>
-                        <option ${task.category === 'Urgent Not Important' ? 'selected' : ''}>Urgent Not Important</option>
-                        <option ${task.category === 'Not Urgent Not Important' ? 'selected' : ''}>Not Urgent Not Important</option>
-                    </select>
-                </td>
-                <td><button onclick="deleteTask(${task.id})">Delete</button></td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    function updateTaskCategory(id, value) {
-        const task = tasks.find(t => t.id === id);
-        if (task) task.category = value;
-        updateChart();
-    }
-
-    function deleteTask(id) {
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-        updateChart();
-    }
-
-    function showTab(tabId) {
-        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        event.currentTarget.classList.add('active');
-        if(tabId === 'chart-tab') updateChart();
-    }
-
-    function updateChart() {
-        const counts = {
-            "Urgent Important": 0,
-            "Not Urgent Important": 0,
-            "Urgent Not Important": 0,
-            "Not Urgent Not Important": 0
-        };
-        tasks.forEach(t => counts[t.category]++);
-
-        const ctx = document.getElementById('priorityChart').getContext('2d');
-        if (myChart) myChart.destroy();
+    /* --- DATABASE LOGIC --- */
+    function loadUserTasks() {
+        document.getElementById('loadingIndicator').classList.remove('hidden');
+        const q = query(tasksCollection, where("uid", "==", currentUser.uid));
         
-        myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(counts),
-                datasets: [{
-                    label: '# of Tasks',
-                    data: Object.values(counts),
-                    backgroundColor: ['#ff4d4d', '#ffcc00', '#3399ff', '#cccccc']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            window.tasksData = [];
+            snapshot.forEach((doc) => {
+                window.tasksData.push(doc.data());
+            });
+            window.tasksData.sort((a, b) => a.createdAt - b.createdAt);
+            window.render();
+        });
+    }
+
+    window.addTasks = async function() {
+        const addBtn = document.getElementById('addBtn');
+        addBtn.blur();
+        
+        // Ensure user has picked a priority
+        if (!window.defaultCat) {
+            alert("Please select a priority category before adding tasks.");
+            return;
+        }
+        
+        const taskInput = document.getElementById('taskInput');
+        addBtn.classList.add('flash');
+        setTimeout(() => addBtn.classList.remove('flash'), 300);
+
+        const newTasks = taskInput.value.split('\n').filter(l => l.trim() !== '');
+        if (newTasks.length === 0 || !currentUser) return;
+
+        for (let t of newTasks) {
+            const id = Date.now().toString() + Math.floor(Math.random() * 1000);
+            const taskObj = { 
+                id: id, 
+                uid: currentUser.uid, 
+                text: t.trim(), 
+                cat: window.defaultCat, 
+                done: false,
+                createdAt: Date.now()
+            };
+            await setDoc(doc(db, "tasks", id), taskObj);
+        }
+        taskInput.value = '';
+        
+        // Undo priority selection after addition
+        window.defaultCat = null;
+        document.querySelectorAll('.catBtn').forEach(b => b.classList.remove('btn-active'));
+    }
+    
+    /* Modifiers */
+    window.updateFirebaseTask = async function(id) {
+        const task = window.tasksData.find(t => t.id === id);
+        if (task) await setDoc(doc(db, "tasks", id), task);
+    }
+    window.setCat = function(id, v) { const task = window.tasksData.find(t => t.id === id); if (task) { task.cat = v; window.updateFirebaseTask(id); } }
+    let typingTimer;
+    window.edit = function(id, v) { clearTimeout(typingTimer); const task = window.tasksData.find(t => t.id === id); if (task) { task.text = v; typingTimer = setTimeout(() => { window.updateFirebaseTask(id); }, 1000); } }
+    window.toggleDone = function(id) { const task = window.tasksData.find(t => t.id === id); if (task) { task.done = !task.done; window.updateFirebaseTask(id); } }
+    window.removeTask = async function(id) { await deleteDoc(doc(db, "tasks", id)); }
+
+    /* UI Logic */
+    window.switchTab = function(tab) {
+        document.getElementById('tasksSection').classList.toggle('hidden', tab !== 'tasks');
+        document.getElementById('dashboardSection').classList.toggle('hidden', tab !== 'dashboard');
+        document.getElementById('tabTasks').className = tab === 'tasks' ? 'pb-3 text-indigo-400 border-b-2 border-indigo-500 font-medium flex items-center gap-2 text-sm transition-colors' : 'pb-3 text-slate-400 border-b-2 border-transparent hover:text-slate-300 font-medium flex items-center gap-2 text-sm transition-colors';
+        document.getElementById('tabDash').className = tab === 'dashboard' ? 'pb-3 text-indigo-400 border-b-2 border-indigo-500 font-medium flex items-center gap-2 text-sm transition-colors' : 'pb-3 text-slate-400 border-b-2 border-transparent hover:text-slate-300 font-medium flex items-center gap-2 text-sm transition-colors';
+        if(tab === 'dashboard') window.updateDashboard();
+    }
+
+    window.setDefault = function(cat, btn) { 
+        window.defaultCat = cat; 
+        document.querySelectorAll('.catBtn').forEach(b => b.classList.remove('btn-active')); 
+        btn.classList.add('btn-active'); 
+    }
+
+    window.render = function() {
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+        
+        [...window.tasksData].reverse().forEach((t) => {
+            // Remove completed tasks from the active task list view
+            if (t.done) return; 
+
+            const div = document.createElement('div');
+            div.className = `bg-[#131b2b] border border-slate-800 p-4 rounded-lg task ${t.cat} mb-3`;
+            div.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <label class="flex gap-3 flex-1 items-center cursor-pointer">
+                        <input type="checkbox" onchange="window.toggleDone('${t.id}')" class="w-4 h-4 rounded border-slate-600 bg-slate-800 accent-indigo-500">
+                        <input class="bg-transparent flex-1 outline-none text-sm text-slate-200" value="${t.text}" oninput="window.edit('${t.id}', this.value)">
+                    </label>
+                    <button onclick="window.removeTask('${t.id}')" class="text-slate-500 hover:text-red-500 font-bold px-2 transition-colors">✕</button>
+                </div>
+                <select class="mt-3 bg-[#182132] text-xs text-slate-300 border border-slate-700 rounded p-1.5 outline-none cursor-pointer w-full" onchange="window.setCat('${t.id}', this.value)">
+                    <option value="UI" ${t.cat === 'UI' ? 'selected' : ''}>Urgent & Important</option>
+                    <option value="NI" ${t.cat === 'NI' ? 'selected' : ''}>Not Urgent Important</option>
+                    <option value="UN" ${t.cat === 'UN' ? 'selected' : ''}>Urgent Not Important</option>
+                    <option value="NN" ${t.cat === 'NN' ? 'selected' : ''}>Neither</option>
+                </select>
+            `;
+            taskList.appendChild(div);
+        });
+        window.updateDashboard();
+    }
+
+    window.updateDashboard = function() {
+        // Clear matrix and completed list
+        ['UI', 'NI', 'UN', 'NN'].forEach(c => document.getElementById('m' + c).innerHTML = '');
+        document.getElementById('completedList').innerHTML = '';
+
+        let count = { UI: 0, NI: 0, UN: 0, NN: 0 }, doneCount = 0;
+        
+        window.tasksData.forEach(t => {
+            if (!t.done) {
+                count[t.cat]++;
+                // Active Matrix Items with Checkboxes
+                document.getElementById('m' + t.cat).innerHTML += `
+                    <div class="flex items-start gap-2 text-slate-300">
+                        <input type="checkbox" onchange="window.toggleDone('${t.id}')" class="mt-1 flex-shrink-0 w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-indigo-500 cursor-pointer">
+                        <span class="break-words leading-tight">${t.text}</span>
+                    </div>`;
+            } else {
+                doneCount++;
+                // Completed Items List at the bottom
+                document.getElementById('completedList').innerHTML += `
+                    <div class="flex items-start gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                        <input type="checkbox" checked onchange="window.toggleDone('${t.id}')" class="mt-1 flex-shrink-0 w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-indigo-500 cursor-pointer">
+                        <span class="line-through break-words leading-tight">${t.text}</span>
+                    </div>`;
             }
         });
+        
+        if (doneCount === 0) {
+            document.getElementById('completedList').innerHTML = '<p class="text-xs italic text-slate-600">No tasks completed yet.</p>';
+        }
+
+        const max = Math.max(...Object.values(count), 1);
+        ['UI', 'NI', 'UN', 'NN'].forEach(c => document.getElementById('bar' + c).style.width = `${(count[c] / max) * 100}%`);
+        
+        document.getElementById('totalCount').textContent = window.tasksData.length;
+        document.getElementById('doneCount').textContent = doneCount;
+        document.getElementById('progressBar').style.width = window.tasksData.length ? `${(doneCount / window.tasksData.length) * 100}%` : '0%';
+    }
+
+    /* OCR Logic */
+    const pasteZone = document.getElementById('pasteZone');
+    pasteZone.addEventListener('paste', e => { for (const item of e.clipboardData.items) if (item.type.includes('image')) window.runOCR(item.getAsFile()); });
+    pasteZone.addEventListener('dragover', e => { e.preventDefault(); pasteZone.classList.add('drag'); });
+    pasteZone.addEventListener('dragleave', () => pasteZone.classList.remove('drag'));
+    pasteZone.addEventListener('drop', e => { e.preventDefault(); pasteZone.classList.remove('drag'); if (e.dataTransfer.files.length) window.runOCR(e.dataTransfer.files[0]); });
+    window.runOCR = async function(file) {
+        document.getElementById('taskInput').value = 'Extracting text from image... please wait.';
+        try {
+            const result = await Tesseract.recognize(file, 'eng');
+            document.getElementById('taskInput').value = result.data.text.split('\n').filter(l => l.trim()).join('\n');
+        } catch (err) { console.error(err); }
     }
 </script>
 
 </body>
 </html>
+
+```
