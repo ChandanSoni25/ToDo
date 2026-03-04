@@ -88,6 +88,11 @@
                 <button onclick="setDefault('NN', this)" class="catBtn bg-[#1a202c] border border-slate-700/50 rounded-lg py-3 text-sm flex items-center justify-center gap-2 transition-all">📦 Neither</button>
             </div>
 
+            <div class="bg-[#131b2b] border border-slate-800 p-4 rounded-xl">
+                <label class="block text-xs text-slate-400 mb-2 font-medium">Target Due Date (Optional)</label>
+                <input type="date" id="newTaskDueDate" class="w-full bg-[#182132] border border-slate-700/50 rounded-lg p-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all cursor-pointer [color-scheme:dark]">
+            </div>
+
             <button id="addBtn" onclick="addTasks()" class="w-full bg-[#5a4bfc] hover:bg-[#4f3feb] text-white py-3.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors focus:outline-none">
                 ➕ Add Tasks
             </button>
@@ -108,7 +113,10 @@
             </div>
 
             <div class="bg-[#131b2b] border border-slate-800 rounded-xl p-6">
-                <h3 class="text-sm font-semibold mb-6 text-slate-100">Eisenhower Matrix</h3>
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-semibold text-slate-100">Eisenhower Matrix</h3>
+                    <span class="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">Sorted by Due Date</span>
+                </div>
                 <div class="grid grid-cols-2 gap-8 text-sm">
                     <div><h4 class="text-red-400 font-bold text-xs mb-3 tracking-wider">DO FIRST</h4><div id="mUI" class="space-y-2"></div></div>
                     <div><h4 class="text-amber-500 font-bold text-xs mb-3 tracking-wider">SCHEDULE</h4><div id="mNI" class="space-y-2"></div></div>
@@ -155,7 +163,7 @@
     const tasksCollection = collection(db, "tasks");
 
     window.tasksData = [];
-    window.defaultCat = null; // Start with NO category selected
+    window.defaultCat = null; 
     let currentUser = null;
     let unsubscribeSnapshot = null;
     let isLoginMode = true;
@@ -163,11 +171,7 @@
     /* --- AUTHENTICATION LOGIC --- */
     window.togglePassword = function() {
         const pwdInput = document.getElementById('passwordInput');
-        if (pwdInput.type === "password") {
-            pwdInput.type = "text";
-        } else {
-            pwdInput.type = "password";
-        }
+        pwdInput.type = pwdInput.type === "password" ? "text" : "password";
     };
 
     window.toggleAuthMode = function() {
@@ -222,9 +226,7 @@
         }
     };
 
-    window.logout = function() {
-        signOut(auth);
-    };
+    window.logout = function() { signOut(auth); };
 
     // Monitor Login State
     onAuthStateChanged(auth, (user) => {
@@ -254,9 +256,7 @@
         unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
             document.getElementById('loadingIndicator').classList.add('hidden');
             window.tasksData = [];
-            snapshot.forEach((doc) => {
-                window.tasksData.push(doc.data());
-            });
+            snapshot.forEach((doc) => { window.tasksData.push(doc.data()); });
             window.tasksData.sort((a, b) => a.createdAt - b.createdAt);
             window.render();
         });
@@ -266,13 +266,14 @@
         const addBtn = document.getElementById('addBtn');
         addBtn.blur();
         
-        // Ensure user has picked a priority
         if (!window.defaultCat) {
             alert("Please select a priority category before adding tasks.");
             return;
         }
         
         const taskInput = document.getElementById('taskInput');
+        const dueDateInput = document.getElementById('newTaskDueDate').value; // Get the due date
+
         addBtn.classList.add('flash');
         setTimeout(() => addBtn.classList.remove('flash'), 300);
 
@@ -287,13 +288,15 @@
                 text: t.trim(), 
                 cat: window.defaultCat, 
                 done: false,
+                dueDate: dueDateInput || null, // Save the due date
                 createdAt: Date.now()
             };
             await setDoc(doc(db, "tasks", id), taskObj);
         }
-        taskInput.value = '';
         
-        // Undo priority selection after addition
+        // Reset inputs
+        taskInput.value = '';
+        document.getElementById('newTaskDueDate').value = '';
         window.defaultCat = null;
         document.querySelectorAll('.catBtn').forEach(b => b.classList.remove('btn-active'));
     }
@@ -304,6 +307,13 @@
         if (task) await setDoc(doc(db, "tasks", id), task);
     }
     window.setCat = function(id, v) { const task = window.tasksData.find(t => t.id === id); if (task) { task.cat = v; window.updateFirebaseTask(id); } }
+    
+    // NEW: Update Due Date Function
+    window.setDueDate = function(id, v) { 
+        const task = window.tasksData.find(t => t.id === id); 
+        if (task) { task.dueDate = v || null; window.updateFirebaseTask(id); } 
+    }
+
     let typingTimer;
     window.edit = function(id, v) { clearTimeout(typingTimer); const task = window.tasksData.find(t => t.id === id); if (task) { task.text = v; typingTimer = setTimeout(() => { window.updateFirebaseTask(id); }, 1000); } }
     window.toggleDone = function(id) { const task = window.tasksData.find(t => t.id === id); if (task) { task.done = !task.done; window.updateFirebaseTask(id); } }
@@ -329,11 +339,12 @@
         taskList.innerHTML = '';
         
         [...window.tasksData].reverse().forEach((t) => {
-            // Remove completed tasks from the active task list view
             if (t.done) return; 
 
             const div = document.createElement('div');
             div.className = `bg-[#131b2b] border border-slate-800 p-4 rounded-lg task ${t.cat} mb-3`;
+            
+            // Added Date Input below Category Select
             div.innerHTML = `
                 <div class="flex items-start justify-between gap-2">
                     <label class="flex gap-3 flex-1 items-center cursor-pointer">
@@ -342,12 +353,15 @@
                     </label>
                     <button onclick="window.removeTask('${t.id}')" class="text-slate-500 hover:text-red-500 font-bold px-2 transition-colors">✕</button>
                 </div>
-                <select class="mt-3 bg-[#182132] text-xs text-slate-300 border border-slate-700 rounded p-1.5 outline-none cursor-pointer w-full" onchange="window.setCat('${t.id}', this.value)">
-                    <option value="UI" ${t.cat === 'UI' ? 'selected' : ''}>Urgent & Important</option>
-                    <option value="NI" ${t.cat === 'NI' ? 'selected' : ''}>Not Urgent Important</option>
-                    <option value="UN" ${t.cat === 'UN' ? 'selected' : ''}>Urgent Not Important</option>
-                    <option value="NN" ${t.cat === 'NN' ? 'selected' : ''}>Neither</option>
-                </select>
+                <div class="mt-3 flex gap-2">
+                    <select class="bg-[#182132] text-xs text-slate-300 border border-slate-700 rounded p-1.5 outline-none cursor-pointer flex-1" onchange="window.setCat('${t.id}', this.value)">
+                        <option value="UI" ${t.cat === 'UI' ? 'selected' : ''}>Urgent & Important</option>
+                        <option value="NI" ${t.cat === 'NI' ? 'selected' : ''}>Not Urgent Important</option>
+                        <option value="UN" ${t.cat === 'UN' ? 'selected' : ''}>Urgent Not Important</option>
+                        <option value="NN" ${t.cat === 'NN' ? 'selected' : ''}>Neither</option>
+                    </select>
+                    <input type="date" value="${t.dueDate || ''}" onchange="window.setDueDate('${t.id}', this.value)" class="bg-[#182132] text-xs text-slate-300 border border-slate-700 rounded p-1.5 outline-none cursor-pointer w-32 [color-scheme:dark]" title="Set Due Date">
+                </div>
             `;
             taskList.appendChild(div);
         });
@@ -355,24 +369,49 @@
     }
 
     window.updateDashboard = function() {
-        // Clear matrix and completed list
         ['UI', 'NI', 'UN', 'NN'].forEach(c => document.getElementById('m' + c).innerHTML = '');
         document.getElementById('completedList').innerHTML = '';
 
         let count = { UI: 0, NI: 0, UN: 0, NN: 0 }, doneCount = 0;
         
-        window.tasksData.forEach(t => {
+        // SORTING LOGIC: Earliest dates first. Tasks with no dates drop to the bottom.
+        let sortedTasks = [...window.tasksData].sort((a, b) => {
+            if (!a.dueDate && !b.dueDate) return a.createdAt - b.createdAt;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate) - new Date(b.dueDate);
+        });
+        
+        sortedTasks.forEach(t => {
             if (!t.done) {
                 count[t.cat]++;
-                // Active Matrix Items with Checkboxes
+                
+                // Construct Date Badge
+                let dateBadge = '';
+                if (t.dueDate) {
+                    const d = new Date(t.dueDate + 'T00:00:00'); // Force correct local timezone
+                    const formatted = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const isOverdue = d < today;
+                    const isToday = d.getTime() === today.getTime();
+                    
+                    let color = 'text-slate-500 border-slate-700'; // Default styling
+                    if (isOverdue) color = 'text-red-400 border-red-900/50 bg-red-900/10 font-medium'; // Overdue
+                    else if (isToday) color = 'text-amber-400 border-amber-900/50 bg-amber-900/10 font-medium'; // Today
+                    
+                    dateBadge = `<span class="ml-2 inline-block whitespace-nowrap text-[10px] px-1.5 py-0.5 rounded border ${color}">🕒 ${formatted}</span>`;
+                }
+
+                // Add to matrix
                 document.getElementById('m' + t.cat).innerHTML += `
-                    <div class="flex items-start gap-2 text-slate-300">
+                    <div class="flex items-start gap-2 text-slate-300 mb-2">
                         <input type="checkbox" onchange="window.toggleDone('${t.id}')" class="mt-1 flex-shrink-0 w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-indigo-500 cursor-pointer">
-                        <span class="break-words leading-tight">${t.text}</span>
+                        <div class="leading-tight flex-1 break-words">${t.text} ${dateBadge}</div>
                     </div>`;
             } else {
                 doneCount++;
-                // Completed Items List at the bottom
                 document.getElementById('completedList').innerHTML += `
                     <div class="flex items-start gap-2 opacity-60 hover:opacity-100 transition-opacity">
                         <input type="checkbox" checked onchange="window.toggleDone('${t.id}')" class="mt-1 flex-shrink-0 w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-indigo-500 cursor-pointer">
